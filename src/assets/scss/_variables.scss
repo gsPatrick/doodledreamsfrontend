@@ -1,0 +1,171 @@
+@use 'sass:color';
+
+// Cores
+$primary: #e3bfeb; // Rosa suave
+$secondary: #a0c4ff; // Verde menta
+$accent: #74c0fc; // Azul claro
+$info: #63b3ed; // Azul informativo
+$success: #68d391; // Verde sucesso
+$warning: #f6e05e; // Amarelo aviso
+$danger: #fc8181; // Vermelho perigo
+$dark: #2d3748; // Cinza escuro
+$light: #f7fafc; // Cinza claro
+$white: #ffffff; // Branco
+$black: #000000; // Preto
+$gold: #ffd700; // Dourado para estrelas e destaques
+$gray-100: #f3f4f6; // Cinza claro
+$gray-200: #e5e7eb; // Cinza médio
+$gray-300: #d1d5db; // Cinza claro
+$gray-400: #9ca3af; // Cinza médio
+$gray-500: #6b7280; // Cinza escuro
+$gray-600: #4b5563; // Cinza médio
+$gray-700: #374151; // Cinza escuro
+$primary-light-100: #f3f4f6; // Cinza claro
+$primary-light-1: #e5e7eb; // Cinza médio
+$primary-light-200: #d1d5db; // Cinza claro
+$primary-light-300: #9ca3af; // Cinza médio
+$primary-light-400: #6b7280; // Cinza escuro
+$primary-light-500: #4b5563; // Cinza médio
+$primary-light-600: #374151; // Cinza escuro
+
+// Escalas derivadas – utilitária para consistência de design tokens
+$dark-20: color.adjust($dark, $lightness: 20%);
+$dark-30: color.adjust($dark, $lightness: 30%);
+$dark-40: color.adjust($dark, $lightness: 40%);
+$dark-50: color.adjust($dark, $lightness: 50%);
+$dark-60: color.adjust($dark, $lightness: 60%);
+$dark-70: color.adjust($dark, $lightness: 70%);
+
+$primary-light-20: color.adjust($primary, $lightness: 20%);
+$primary-light-35: color.adjust($primary, $lightness: 35%);
+
+// Gradientes
+$gradient-primary: linear-gradient(135deg, $primary, color.adjust($primary, $lightness: 10%));
+$gradient-secondary: linear-gradient(135deg, $secondary, color.adjust($secondary, $lightness: 10%));
+$gradient-accent: linear-gradient(135deg, $accent, color.adjust($accent, $lightness: 10%));
+
+// Tipografia
+$font-family-base: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-heading: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-mono: 'Courier New', monospace;
+
+// Adicionando aliases para compatibilidade com arquivos que usam nomenclatura diferente
+$font-family-primary: $font-family-base;
+$font-family-secondary: $font-family-heading;
+
+$font-size-xs: 0.75rem; // 12px
+$font-size-sm: 0.875rem; // 14px
+$font-size-base: 1rem; // 16px
+$font-size-md: 1.125rem; // 18px
+$font-size-lg: 1.25rem; // 20px
+$font-size-xl: 1.5rem; // 24px
+$font-size-2xl: 1.875rem; // 30px
+$font-size-3xl: 2.25rem; // 36px
+$font-size-4xl: 3rem; // 48px
+$font-size-5xl: 3.75rem; // 60px
+
+$line-height-tight: 1.25;
+$line-height-base: 1.5;
+$line-height-loose: 1.75;
+
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Espaçamento
+$spacing-xs: 0.25rem; // 4px
+$spacing-sm: 0.5rem; // 8px
+$spacing-md: 1rem; // 16px
+$spacing-lg: 1.5rem; // 24px
+$spacing-xl: 2rem; // 32px
+$spacing-2xl: 3rem; // 48px
+$spacing-3xl: 4rem; // 64px
+$spacing-4xl: 6rem; // 96px
+
+// Breakpoints
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+
+// Border radius
+$border-radius-sm: 0.25rem; // 4px
+$border-radius-md: 0.5rem; // 8px
+$border-radius-lg: 1rem; // 16px
+$border-radius-xl: 1.5rem; // 24px
+$border-radius-full: 9999px;
+
+// Shadows
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
+
+// Transitions
+$transition-base: all 0.3s ease;
+$transition-fast: all 0.15s ease;
+$transition-slow: all 0.5s ease;
+
+// Z-index
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// Container
+$container-max-width-sm: 540px;
+$container-max-width-md: 720px;
+$container-max-width-lg: 960px;
+$container-max-width-xl: 1140px;
+
+// Grid
+$grid-columns: 12;
+$grid-gutter-width: $spacing-md;
+
+// Buttons
+$button-padding-y: $spacing-sm;
+$button-padding-x: $spacing-lg;
+$button-font-size: $font-size-base;
+$button-line-height: $line-height-base;
+$button-border-radius: $border-radius-md;
+$button-transition: $transition-base;
+
+// Forms
+$input-padding-y: $spacing-sm;
+$input-padding-x: $spacing-md;
+$input-font-size: $font-size-base;
+$input-line-height: $line-height-base;
+$input-border-radius: $border-radius-md;
+$input-border-color: color.adjust($dark, $lightness: 60%);
+$input-focus-border-color: $primary;
+$input-focus-box-shadow: 0 0 0 3px rgba($primary, 0.25);
+$input-transition: $transition-base;
+
+// Cards
+$card-border-radius: $border-radius-lg;
+$card-box-shadow: $shadow-md;
+$card-padding: $spacing-lg;
+$card-margin-bottom: $spacing-lg;
+$card-transition: $transition-base;
+
+// Animation
+$animation-duration-fast: 0.15s;
+$animation-duration-base: 0.3s;
+$animation-duration-slow: 0.5s;
+$animation-timing-function: ease;
+
+// Opacity
+$opacity-disabled: 0.65;
+$opacity-overlay: 0.75;
+$opacity-hover: 0.9;
+
+// Aspect ratios
+$aspect-ratio-1x1: 100%;
+$aspect-ratio-4x3: 75%;
+$aspect-ratio-16x9: 56.25%;
+$aspect-ratio-21x9: 42.86%;

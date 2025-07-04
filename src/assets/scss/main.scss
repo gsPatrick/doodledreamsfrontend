@@ -1,0 +1,323 @@
+@use 'sass:color';
+
+@forward 'variables';
+@use 'variables' as *;
+
+@forward 'mixins';
+@use 'mixins' as *;
+
+@use 'reset';
+@use 'utilities';
+
+// Importação de fontes do Google
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap');
+
+// Estilos globais
+html {
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: $line-height-base;
+  color: $dark;
+  background-color: $light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $font-family-heading;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  margin-top: 0;
+  margin-bottom: $spacing-md;
+  color: $dark;
+}
+
+h1 {
+  font-size: $font-size-3xl;
+
+  @include respond-to(md) {
+    font-size: $font-size-4xl;
+  }
+
+  @include respond-to(lg) {
+    font-size: $font-size-5xl;
+  }
+}
+
+h2 {
+  font-size: $font-size-2xl;
+
+  @include respond-to(md) {
+    font-size: $font-size-3xl;
+  }
+}
+
+h3 {
+  font-size: $font-size-xl;
+
+  @include respond-to(md) {
+    font-size: $font-size-2xl;
+  }
+}
+
+h4 {
+  font-size: $font-size-lg;
+
+  @include respond-to(md) {
+    font-size: $font-size-xl;
+  }
+}
+
+h5 {
+  font-size: $font-size-md;
+
+  @include respond-to(md) {
+    font-size: $font-size-lg;
+  }
+}
+
+h6 {
+  font-size: $font-size-base;
+
+  @include respond-to(md) {
+    font-size: $font-size-md;
+  }
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: $spacing-md;
+}
+
+a {
+  color: $primary;
+  text-decoration: none;
+  transition: $transition-base;
+
+  &:hover {
+    color: color.adjust($primary, $lightness: -10%);
+  }
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+// Container
+.container {
+  @include container;
+}
+
+// Seções
+.section {
+  padding: $spacing-2xl 0;
+
+  @include respond-to(md) {
+    padding: $spacing-3xl 0;
+  }
+
+  @include respond-to(lg) {
+    padding: $spacing-4xl 0;
+  }
+}
+
+.section-title {
+  font-size: $font-size-2xl;
+  margin-bottom: $spacing-md;
+  text-align: center;
+
+  @include respond-to(md) {
+    font-size: $font-size-3xl;
+    margin-bottom: $spacing-lg;
+  }
+}
+
+.section-subtitle {
+  font-size: $font-size-md;
+  color: color.adjust($dark, $lightness: 20%);
+  text-align: center;
+  margin-top: -$spacing-sm;
+  margin-bottom: $spacing-xl;
+
+  @include respond-to(md) {
+    font-size: $font-size-lg;
+  }
+}
+
+// Botões
+.btn {
+  display: inline-block;
+  font-weight: $font-weight-semibold;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: $button-padding-y $button-padding-x;
+  font-size: $button-font-size;
+  line-height: $button-line-height;
+  border-radius: $button-border-radius;
+  transition: $button-transition;
+  cursor: pointer;
+
+  &:focus {
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba($primary, 0.25);
+  }
+
+  &:disabled {
+    opacity: $opacity-disabled;
+    cursor: not-allowed;
+  }
+
+  &-primary {
+    @include button-style($primary, $white, color.adjust($primary, $lightness: -10%));
+  }
+
+  &-secondary {
+    @include button-style($secondary, $white, color.adjust($secondary, $lightness: -10%));
+  }
+
+  &-accent {
+    @include button-style($accent, $white, color.adjust($accent, $lightness: -10%));
+  }
+
+  &-outline {
+    background-color: transparent;
+    color: $primary;
+    border-color: $primary;
+
+    &:hover {
+      background-color: $primary;
+      color: $white;
+    }
+  }
+
+  &-lg {
+    padding: $spacing-md $spacing-xl;
+    font-size: $font-size-lg;
+  }
+
+  &-sm {
+    padding: $spacing-xs $spacing-md;
+    font-size: $font-size-sm;
+  }
+}
+
+// Formulários
+.form-group {
+  margin-bottom: $spacing-md;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: $spacing-xs;
+  font-weight: $font-weight-medium;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: $input-padding-y $input-padding-x;
+  font-size: $input-font-size;
+  line-height: $input-line-height;
+  color: $dark;
+  background-color: $white;
+  background-clip: padding-box;
+  border: 1px solid $input-border-color;
+  border-radius: $input-border-radius;
+  transition: $input-transition;
+
+  &:focus {
+    border-color: $input-focus-border-color;
+    outline: 0;
+    box-shadow: $input-focus-box-shadow;
+  }
+
+  &::placeholder {
+    color: color.adjust($dark, $lightness: 40%);
+    opacity: 1;
+  }
+
+  &:disabled {
+    background-color: color.adjust($dark, $lightness: 75%);
+    opacity: 1;
+  }
+}
+
+// Animações
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Responsividade para dispositivos móveis
+@include respond-to(sm-down) {
+  html {
+    font-size: 14px;
+  }
+
+  .section {
+    padding: $spacing-xl 0;
+  }
+
+  .section-title {
+    font-size: $font-size-xl;
+  }
+
+  .section-subtitle {
+    font-size: $font-size-base;
+  }
+
+  .btn {
+    padding: $spacing-xs $spacing-md;
+    font-size: $font-size-sm;
+  }
+}
+
+/* Variáveis e mixins importados globalmente via Vite */
