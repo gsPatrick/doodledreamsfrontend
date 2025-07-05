@@ -16,8 +16,10 @@
               Limpar
             </button>
           </div>
-          <FilterContent 
-            :filters="filters" 
+          <!-- CORREÇÃO: Adicionado v-if para garantir que as categorias existam antes de renderizar -->
+          <FilterContent
+            v-if="categories && categories.length > 0"
+            :filters="filters"
             :categories="categories"
             @update:filters="updateFilters"
             @apply-filters="applyFiltersAndCloseModal"
@@ -31,11 +33,12 @@
                 <font-awesome-icon icon="filter" />
                 <span>Filtros</span>
               </button>
-              <span class="results-count">Mostrando {{ products.length }} de {{ pagination.total }} produtos</span>
+              <!-- CORREÇÃO: Usar optional chaining para segurança -->
+              <span class="results-count">Mostrando {{ products?.length || 0 }} de {{ pagination?.total || 0 }} produtos</span>
             </div>
             <div class="catalog-actions">
               <div class="sort-select">
-                <select v-model="filters.sortBy" class="form-control">
+                <select v-model="filters.sortBy" @change="applySort" class="form-control">
                   <option value="createdAt_desc">Mais Recentes</option>
                   <option value="lancamentos">Lançamentos</option>
                   <option value="mais-vendidos">Mais Vendidos</option>
@@ -53,15 +56,18 @@
              <p>Buscando produtos...</p>
           </div>
           <div v-else-if="error" class="empty-state">
-            <font-awesome-icon :icon="['far', 'sad-tear']" size="4x"/>
-            <h4>Ocorreu um erro</h4>
-            <p>{{ error }}</p>
-             <button class="btn btn-primary" @click="fetchProducts">
+             <!-- Ícone de erro pode ser diferente -->
+             <font-awesome-icon icon="exclamation-circle" size="4x"/>
+             <h4>Ocorreu um erro</h4>
+             <p>{{ error }}</p>
+             <button class="btn btn-primary" @click="fetchProducts(true)">
               Tentar Novamente
             </button>
           </div>
-          <div v-else-if="!products.length" class="empty-state">
-            <font-awesome-icon :icon="['far', 'sad-tear']" size="4x"/>
+          <!-- CORREÇÃO: Usar optional chaining aqui também -->
+          <div v-else-if="!products?.length" class="empty-state">
+            <!-- Ícone pode ser diferente -->
+            <font-awesome-icon icon="search" size="4x"/>
             <h4>Nenhum resultado encontrado</h4>
             <p>Tente ajustar seus filtros ou fazer uma nova busca.</p>
             <button class="btn btn-primary" @click="clearFilters">
@@ -69,7 +75,8 @@
             </button>
           </div>
           <div v-else class="products-grid">
-            <ProductCard v-for="product in products" :key="product.id" :produto="product" />
+            <!-- CORREÇÃO: Adicionado v-if para o produto e optional chaining na key -->
+            <ProductCard v-for="product in products" :key="product?.id" v-if="product" :produto="product" />
           </div>
 
           <div class="pagination" v-if="pagination.totalPages > 1">
@@ -99,15 +106,17 @@
             </button>
           </div>
           <div class="modal-content">
-             <FilterContent 
-                :filters="filters" 
+             <!-- CORREÇÃO: Adicionado v-if aqui também -->
+             <FilterContent
+                v-if="categories && categories.length > 0"
+                :filters="filters"
                 :categories="categories"
                 @update:filters="updateFilters"
              />
           </div>
            <div class="modal-footer">
                 <button class="btn btn-secondary" @click="clearFilters">Limpar</button>
-                <button class="btn btn-primary" @click="applyFiltersAndCloseModal">Ver {{ pagination.total }} produtos</button>
+                <button class="btn btn-primary" @click="applyFiltersAndCloseModal">Ver {{ pagination.total || 0 }} produtos</button>
             </div>
        </div>
     </div>
@@ -126,6 +135,7 @@ import categoriaService from '@/services/categoriaService';
 const route = useRoute();
 const router = useRouter();
 
+// CORREÇÃO: Inicializar com valores seguros
 const products = ref([]);
 const categories = ref([]);
 const loading = ref(true);
@@ -140,22 +150,39 @@ const filters = reactive({
   sortBy: 'createdAt_desc',
 });
 
-const updateFiltersFromUrl = () => {
-    filters.categories = [];
+// CORREÇÃO: Função para atualizar URL de forma mais controlada
+const updateRouterQuery = () => {
+    const queryForRouter = {};
+    if (filters.search) queryForRouter.busca = filters.search;
+    if (filters.categories.length > 0) queryForRouter.categorias = filters.categories.join(',');
+    if (filters.price.min) queryForRouter.precoMin = filters.price.min;
+    if (filters.price.max) queryForRouter.precoMax = filters.price.max;
+    if (filters.sortBy !== 'createdAt_desc') queryForRouter.ordenarPor = filters.sortBy;
+    if (pagination.page > 1) queryForRouter.page = pagination.page;
 
+    // Apenas atualiza a rota se houver mudança real para evitar loops
+    if (JSON.stringify(queryForRouter) !== JSON.stringify(route.query)) {
+        router.push({ query: queryForRouter });
+    }
+};
+
+const updateFiltersFromUrl = () => {
     const { query, params } = route;
 
+    // Atualiza as categorias baseado no slug da URL, se existir
     if (params.category && categories.value.length) {
         const categorySlug = params.category.toLowerCase();
-        const foundCategory = categories.value.find(c => c.slug.toLowerCase() === categorySlug);
-        if (foundCategory) {
-            filters.categories = [foundCategory.id];
-        }
-    } 
+        // CORREÇÃO: Usar optional chaining para evitar erro se 'c' for nulo
+        const foundCategory = categories.value.find(c => c?.slug?.toLowerCase() === categorySlug);
+        filters.categories = foundCategory ? [foundCategory.id] : [];
+    }
+    // Senão, usa as categorias da query
     else if (query.categorias) {
         filters.categories = query.categorias.split(',').map(Number);
+    } else {
+        filters.categories = [];
     }
-    
+
     filters.search = query.busca || '';
     filters.price.min = query.precoMin ? Number(query.precoMin) : null;
     filters.price.max = query.precoMax ? Number(query.precoMax) : null;
@@ -163,74 +190,78 @@ const updateFiltersFromUrl = () => {
     pagination.page = query.page ? Number(query.page) : 1;
 };
 
-const fetchProducts = debounce(async () => {
+// CORREÇÃO: Simplificado e mais robusto. O debounce foi movido para o watcher.
+const fetchProducts = async (forceUpdate = false) => {
+  // Se não for uma atualização forçada, não faz nada (o watcher cuidará disso)
+  if (!forceUpdate && loading.value) return;
+
   loading.value = true;
   error.value = null;
 
-  const params = {
-      page: pagination.page,
-      limit: pagination.limit,
-      busca: filters.search,
-      categorias: filters.categories.join(','),
-      precoMin: filters.price.min,
-      precoMax: filters.price.max,
-      ordenarPor: filters.sortBy,
-  };
-  
-  const queryForRouter = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v != null && v !== '' && String(v).length > 0)
-  );
-  
-  if (queryForRouter.page === 1) {
-    delete queryForRouter.page;
-  }
-
-  if (JSON.stringify(queryForRouter) !== JSON.stringify(route.query)) {
-      router.push({ query: queryForRouter });
-  }
-
   try {
+    const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+        busca: filters.search,
+        categorias: filters.categories.join(','),
+        precoMin: filters.price.min,
+        precoMax: filters.price.max,
+        ordenarPor: filters.sortBy,
+    };
     const data = await produtoService.getProdutos(params);
-    products.value = data.produtos;
-    pagination.total = data.total;
-    pagination.totalPages = data.totalPages;
-  } catch (err) { 
+
+    // CORREÇÃO: Garantir que os dados da API são arrays antes de atribuir
+    products.value = Array.isArray(data.produtos) ? data.produtos : [];
+    pagination.total = data.total || 0;
+    pagination.totalPages = data.totalPages || 1;
+
+  } catch (err) {
     console.error("Erro ao buscar produtos:", err);
     error.value = err.response?.data?.erro || "Não foi possível carregar os produtos. Tente novamente mais tarde.";
-  } 
-  finally { loading.value = false; }
-}, 300);
+    products.value = []; // Limpa os produtos em caso de erro
+  } finally {
+    loading.value = false;
+  }
+};
 
 const fetchCategories = async () => {
     try {
         const data = await categoriaService.getCategorias();
-        categories.value = data.categorias || data;
-    } catch (err) { 
+        // CORREÇÃO: Garantir que o resultado é sempre um array
+        categories.value = Array.isArray(data) ? data : (Array.isArray(data.categorias) ? data.categorias : []);
+    } catch (err) {
         console.error("Erro ao buscar categorias:", err);
+        categories.value = []; // Estado seguro em caso de erro
     }
 };
 
 const clearFilters = () => {
     Object.assign(filters, { search: '', categories: [], price: { min: null, max: null }, sortBy: 'createdAt_desc' });
     pagination.page = 1;
-    router.push({ path: '/catalogo', query: {} });
+    router.push({ path: '/catalogo', query: {} }); // O watcher cuidará de recarregar os produtos
 };
 
 const changePage = (page) => {
     if (page > 0 && page <= pagination.totalPages) {
         pagination.page = page;
+        updateRouterQuery(); // Atualiza a URL e o watcher faz o resto
     }
+};
+
+const applySort = () => {
+    pagination.page = 1;
+    updateRouterQuery();
 };
 
 const applyFiltersAndCloseModal = () => {
     pagination.page = 1;
-    fetchProducts();
+    updateRouterQuery();
     showMobileFilters.value = false;
 };
 
 const updateFilters = (newFilters) => {
     Object.assign(filters, newFilters);
-}
+};
 
 const displayedPages = computed(() => {
     const pages = [];
@@ -254,16 +285,27 @@ const hasActiveFilters = computed(() => {
            filters.price.max !== null;
 });
 
+// --- LÓGICA DE EXECUÇÃO E OBSERVAÇÃO ---
 onMounted(async () => {
+  loading.value = true;
   await fetchCategories();
+  // Após carregar as categorias, podemos sincronizar os filtros com a URL
   updateFiltersFromUrl();
-  fetchProducts();
+  // A busca inicial de produtos será acionada pelo watcher da rota
+  loading.value = false;
 });
 
-watch([() => route.fullPath, categories], updateFiltersFromUrl, { immediate: true });
-watch(filters, fetchProducts, { deep: true });
-watch(() => pagination.page, fetchProducts);
-
+// CORREÇÃO: Watcher de rota mais limpo e debounced para a busca
+watch(
+  () => route.fullPath,
+  debounce((newPath, oldPath) => {
+    if (newPath !== oldPath) {
+      updateFiltersFromUrl();
+      fetchProducts(true);
+    }
+  }, 150), // Pequeno debounce para evitar múltiplas chamadas rápidas
+  { immediate: true } // Executa imediatamente na carga
+);
 </script>
 
 <style lang="scss" scoped>
