@@ -2,7 +2,7 @@
   <div class="product-detail">
     <ToastNotification />
     
-    <!-- Modal de Cadastro Rápido -->
+    <!-- Modal de Cadastro Rápido (seu código original mantido) -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
@@ -11,56 +11,25 @@
             <font-awesome-icon icon="times" />
           </button>
         </div>
-
         <div class="modal-body">
           <p style="color: gray !important;">Para continuar, informe seus dados abaixo:</p>
-          
           <div class="form-group">
             <label for="nome">Nome</label>
-            <input 
-              type="text" 
-              id="nome" 
-              v-model="formData.nome" 
-              placeholder="Seu nome"
-              class="form-control"
-              required
-            />
+            <input type="text" id="nome" v-model="formData.nome" placeholder="Seu nome" class="form-control" required />
           </div>
-
           <div class="form-group">
             <label for="email">E-mail</label>
-            <input 
-              type="email" 
-              id="email" 
-              v-model="formData.email" 
-              placeholder="seu@email.com"
-              class="form-control"
-              required
-            /> 
+            <input type="email" id="email" v-model="formData.email" placeholder="seu@email.com" class="form-control" required /> 
           </div>
-
-          <div class="error-message" v-if="errorMessage">
-            {{ errorMessage }}
-          </div>
-          
+          <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
           <div class="modal-actions">
-            <button 
-              class="submit-button" 
-              @click="criarConta"
-              :disabled="isLoadingModal"
-            >
+            <button class="submit-button" @click="criarConta" :disabled="isLoadingModal">
               <span v-if="isLoadingModal">Processando...</span>
               <span v-else>Continuar</span>
             </button>
-            
             <div class="login-link">
               Já tem uma conta? 
-              <router-link 
-                to="/login" 
-                @click="fecharModal"
-              >
-                Faça login
-              </router-link>
+              <router-link to="/login" @click="fecharModal">Faça login</router-link>
             </div>
           </div>
         </div>
@@ -78,16 +47,12 @@
       </div>
 
       <div v-if="loading" class="loading-product">
-        <div class="loading-spinner">
-          <font-awesome-icon icon="spinner" spin />
-        </div>
+        <div class="loading-spinner"><font-awesome-icon icon="spinner" spin /></div>
         <p>Carregando produto...</p>
       </div>
 
       <div v-else-if="error" class="product-not-found">
-        <div class="not-found-icon">
-          <font-awesome-icon icon="exclamation-circle" />
-        </div>
+        <div class="not-found-icon"><font-awesome-icon icon="exclamation-circle" /></div>
         <h2>Produto não encontrado</h2>
         <p>{{ error }}</p>
         <router-link to="/catalog" class="btn btn-primary"> Voltar para o Catálogo </router-link>
@@ -97,48 +62,19 @@
         <div class="product-gallery">
           <div class="main-image">
             <transition name="fade-image" mode="out-in">
-              <!-- Vídeo -->
-              <video 
-                v-if="activeMedia && activeMedia.tipo === 'video'" 
-                :key="activeMedia.url" 
-                controls 
-                class="product-video"
-              >
+              <video v-if="activeMedia && activeMedia.tipo === 'video'" :key="activeMedia.url" controls class="product-video">
                 <source :src="activeMedia.url" :type="activeMedia.mimeType || 'video/mp4'">
                 Seu navegador não suporta o elemento de vídeo.
               </video>
-              <!-- Imagem -->
-              <img 
-                v-else 
-                :key="activeImageUrl" 
-                :src="activeImageUrl" 
-                :alt="product.title" 
-              />
+              <img v-else :key="activeImageUrl" :src="activeImageUrl" :alt="product.title" />
             </transition>
           </div>
           <div class="thumbnail-list">
-            <!-- Miniaturas de imagens -->
-            <button
-              v-for="(image, index) in product.imagens"
-              :key="`img-${index}`"
-              class="thumbnail"
-              :class="{ active: selectedImage === index && !selectedVideo }"
-              @click="selectImage(index)"
-            >
+            <button v-for="(image, index) in product.imagens" :key="`img-${index}`" class="thumbnail" :class="{ active: selectedImage === index && !selectedVideo }" @click="selectImage(index)">
               <img :src="image" :alt="`${product.title} - Imagem ${index + 1}`" />
             </button>
-            
-            <!-- Miniaturas de vídeos -->
-            <button
-              v-for="(video, index) in videos"
-              :key="`video-${video.id}`"
-              class="thumbnail video-thumbnail"
-              :class="{ active: selectedVideo === video.id }"
-              @click="selectVideo(video)"
-            >
-              <div class="video-icon">
-                <font-awesome-icon icon="play-circle" />
-              </div>
+            <button v-for="(video, index) in videos" :key="`video-${video.id}`" class="thumbnail video-thumbnail" :class="{ active: selectedVideo === video.id }" @click="selectVideo(video)">
+              <div class="video-icon"><font-awesome-icon icon="play-circle" /></div>
               <img src="https://placehold.co/80x80/EFEFEF/333?text=Vídeo" :alt="`${product.title} - Vídeo ${index + 1}`" />
             </button>
           </div>
@@ -146,60 +82,30 @@
 
         <div class="product-info">
           <h1 class="product-title">{{ product.title }}</h1>
-
           <div class="product-meta">
-            <div class="author" v-if="product.author">
-              por <span>{{ product.author }}</span>
-            </div>
-            <div class="publisher" v-if="product.publisher">
-              Editora: <span>{{ product.publisher }}</span>
-            </div>
-            <div class="category" v-if="product.categoria">
-              Categoria: <span>{{ product.categoria.nome }}</span>
-            </div>
+            <div class="author" v-if="product.author">por <span>{{ product.author }}</span></div>
+            <div class="publisher" v-if="product.publisher">Editora: <span>{{ product.publisher }}</span></div>
+            <div class="category" v-if="product.categoria">Categoria: <span>{{ product.categoria.nome }}</span></div>
           </div>
-
-          <!-- <div class="product-rating">
-            <div class="stars">
-              <font-awesome-icon icon="star" v-for="star in 5" :key="star"
-                :class="{ filled: star <= Math.floor(product.rating) }" />
-            </div>
-            <span class="rating-value">{{ product.rating }}</span>
-            <span class="rating-count">({{ product.reviewCount }} avaliações)</span>
-          </div> -->
-
           <div class="product-price">
             <div v-if="product.discount" class="discount-badge">-{{ product.discount }}%</div>
             <div class="price-container">
-              <span v-if="product.oldPrice" class="old-price">
-                R$ {{ formatPrice(product.oldPrice) }}
-              </span>
+              <span v-if="product.oldPrice" class="old-price">R$ {{ formatPrice(product.oldPrice) }}</span>
               <span class="current-price">
-                <template v-if="selectedVariation">
-                  R$ {{ formatPrice(selectedVariation.preco) }}
-                </template>
+                <template v-if="selectedVariation">R$ {{ formatPrice(selectedVariation.preco) }}</template>
                 <template v-else>
-                  R$ {{ formatPrice(minPrice)
-                  }}<span v-if="maxPrice > minPrice"> - R$ {{ formatPrice(maxPrice) }}</span>
+                  R$ {{ formatPrice(minPrice) }}<span v-if="maxPrice > minPrice"> - R$ {{ formatPrice(maxPrice) }}</span>
                 </template>
               </span>
             </div>
           </div>
 
-          <!-- Seleção de variações como botões de rádio -->
+          <!-- Seleção de Variações -->
           <div class="product-variations" v-if="product.variacoes && product.variacoes.length">
             <label class="variations-label">Variações:</label>
             <div class="variations-options">
-              <div 
-                v-for="variation in product.variacoes" 
-                :key="variation.id"
-                class="variation-option"
-                :class="{ 'active': selectedVariation && selectedVariation.id === variation.id }"
-                @click="selectVariation(variation)"
-              >
-                <div class="variation-radio">
-                  <div class="radio-inner" v-if="selectedVariation && selectedVariation.id === variation.id"></div>
-                </div>
+              <div v-for="variation in product.variacoes" :key="variation.id" class="variation-option" :class="{ 'active': selectedVariation && selectedVariation.id === variation.id }" @click="selectVariation(variation)">
+                <div class="variation-radio"><div class="radio-inner" v-if="selectedVariation && selectedVariation.id === variation.id"></div></div>
                 <div class="variation-details">
                   <div class="variation-name">{{ variation.nome }}</div>
                   <div class="variation-price">R$ {{ formatPrice(variation.preco) }}</div>
@@ -214,30 +120,19 @@
 
           <div class="product-actions gap-4">
             <div class="quantity-selector">
-              <button class="quantity-btn" @click="decreaseQuantity" :disabled="quantity === 1">
-                <font-awesome-icon icon="minus" />
-              </button>
+              <button class="quantity-btn" @click="decreaseQuantity" :disabled="quantity === 1"><font-awesome-icon icon="minus" /></button>
               <input type="number" v-model="quantity" min="1" max="99" class="quantity-input" />
-              <button class="quantity-btn" @click="increaseQuantity" :disabled="quantity === 99">
-                <font-awesome-icon icon="plus" />
-              </button>
+              <button class="quantity-btn" @click="increaseQuantity" :disabled="quantity === 99"><font-awesome-icon icon="plus" /></button>
             </div>
 
-            <button
-              class="btn btn-primary btn-lg btn-block"
-              @click="addToCart"
-              :disabled="isAddingToCart || !selectedVariation"
-            >
+            <!-- BOTÃO CORRIGIDO -->
+            <button class="btn btn-primary btn-lg btn-block" @click="handleAddToCart" :disabled="isAddingToCart || !selectedVariation">
               <font-awesome-icon v-if="!isAddingToCart" icon="shopping-bag" />
               <font-awesome-icon v-else icon="spinner" spin />
               {{ isAddingToCart ? 'Adicionando...' : 'Adicionar ao Carrinho' }}
             </button>
 
-            <button
-              class="btn btn-outline btn-lg btn-block favorite-btn"
-              @click="toggleFavorite"
-              :class="{ active: isFavorite }"
-            >
+            <button class="btn btn-outline btn-lg btn-block favorite-btn" @click="toggleFavorite" :class="{ active: isFavorite }">
               <font-awesome-icon icon="heart" />
               {{ isFavorite ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos' }}
             </button>
@@ -247,19 +142,10 @@
             <h2>Descrição</h2>
             <p>{{ product.description }}</p>
           </div>
-
-         
         </div>
       </div>
 
-      <!-- Produtos Recomendados -->
-      <ProductRecommendations
-        v-if="product"
-        title="Você também pode gostar"
-        subtitle="Baseado nas suas preferências"
-        :produtos="recommendedProducts"
-        :current-product-id="product.id"
-      />
+      <ProductRecommendations v-if="product" title="Você também pode gostar" subtitle="Baseado nas suas preferências" :produtos="recommendedProducts" :current-product-id="product.id" />
     </div>
   </div>
 </template>
@@ -284,11 +170,11 @@ export default {
   },
   setup() {
     const route = useRoute()
-    const { adicionarAoCarrinho } = useCart()
+    const { adicionarAoCarrinho } = useCart() // <-- A função do composable já está aqui
     const { adicionarFavorito, removerFavorito } = useFavorites()
     const { addNotification } = useNotifications()
 
-    // Estado do modal
+    // Estado do modal (sua lógica original mantida)
     const showModal = ref(false)
     const formData = ref({
       nome: '',
@@ -327,7 +213,6 @@ export default {
           formData.value.email
         )
         
-        // Salva o token no localStorage
         if (resultado.token) {
           localStorage.setItem('token', resultado.token)
         }
@@ -338,8 +223,10 @@ export default {
           type: 'success'
         })
 
-        // Recarrega a página após o cadastro bem-sucedido
-        window.location.reload()
+        // Executa a ação pendente após o cadastro
+        if (pendingAction.value && typeof pendingAction.value === 'function') {
+          await pendingAction.value();
+        }
         
       } catch (error) {
         console.error('Erro ao criar conta:', error)
@@ -363,6 +250,7 @@ export default {
     const activeMedia = ref(null)
 
     const mapProductData = p => {
+      // ... sua função mapProductData original mantida ...
       if (!p) return null
 
       const getImageUrl = url => {
@@ -378,13 +266,11 @@ export default {
       } 
       
       if (p.ArquivoProdutos && p.ArquivoProdutos.length > 0) {
-        // Filtrar imagens
         const imageFiles = p.ArquivoProdutos.filter(f => f.tipo === 'imagem')
         if (imageFiles.length > 0) {
           images = imageFiles.map(img => getImageUrl(img.url))
         }
         
-        // Filtrar vídeos
         productVideos = p.ArquivoProdutos.filter(f => f.tipo === 'video')
       }
       
@@ -392,7 +278,6 @@ export default {
         images = [getImageUrl(null)]
       }
 
-      // Atualizar a referência de vídeos
       videos.value = productVideos
 
       return {
@@ -429,12 +314,10 @@ export default {
         const data = await produtoService.getProdutoById(productId)
         product.value = mapProductData(data)
         
-        // Se houver variações, seleciona a primeira por padrão
         if (product.value?.variacoes?.length > 0) {
           selectVariation(product.value.variacoes[0])
         }
 
-        // Verificar se o produto é favorito
         try {
           const favResp = await favoritoService.verificarFavorito(productId);
           isFavorite.value = favResp.data.isFavorito;
@@ -477,7 +360,9 @@ export default {
 
     const selectVariation = (variation) => {
       selectedVariation.value = variation
-      product.value.price = parseFloat(variation.preco)
+      if (product.value) { // <-- ADIÇÃO: Verificação de segurança
+        product.value.price = parseFloat(variation.preco)
+      }
     }
 
     const activeImageUrl = computed(() => {
@@ -501,7 +386,8 @@ export default {
       if (quantity.value < 99) quantity.value++
     }
     
-    const addToCart = async () => {
+    // <-- CORREÇÃO: Nome da função mudado para evitar conflito com a importada
+    const handleAddToCart = async () => {
       if (!selectedVariation.value) {
         addNotification({
           message: 'Por favor, selecione uma variação do produto',
@@ -510,39 +396,41 @@ export default {
         return
       }
 
-      // Verifica se o usuário está logado
-      const token = localStorage.getItem('token')
-      if (!token) {
-        console.log('Usuário não logado, abrindo modal de cadastro...')
-        openGhostSignup(() => {
-          console.log('Callback do modal executado, adicionando ao carrinho...')
-          adicionarAoCarrinho({
-            id: product.value.id,
-            variacaoId: selectedVariation.value.id
-          }, quantity.value)
-        })
-        return
-      }
+      // Função interna para a lógica de adicionar ao carrinho
+      const doAddToCart = async () => {
+        isAddingToCart.value = true;
+        try {
+          // <-- CORREÇÃO: Passando o objeto do produto, a quantidade e o ID da variação
+          await adicionarAoCarrinho(
+            product.value,
+            quantity.value,
+            selectedVariation.value.id 
+          );
+        } catch (error) {
+          console.error('Erro ao adicionar ao carrinho:', error);
+          addNotification({
+            message: error.response?.data?.mensagem || 'Não foi possível adicionar o produto.',
+            type: 'error',
+          });
+        } finally {
+          isAddingToCart.value = false;
+        }
+      };
 
-      try {
-        isAddingToCart.value = true
-        await adicionarAoCarrinho({
-          id: product.value.id,
-          variacaoId: selectedVariation.value.id
-        }, quantity.value)
-      } catch (error) {
-        console.error('Erro ao adicionar ao carrinho:', error)
-        addNotification({
-          message: error.response?.data?.mensagem || 'Não foi possível adicionar o produto.',
-          type: 'error',
-        })
-      } finally {
-        isAddingToCart.value = false
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Usuário não logado, abrindo modal de cadastro...');
+        // Passa a função 'doAddToCart' como callback para ser executada após o login/cadastro
+        openGhostSignup(doAddToCart);
+        return;
       }
+      
+      // Se já estiver logado, executa a ação diretamente
+      await doAddToCart();
     }
     
     const toggleFavorite = async () => {
-      // Verifica se o usuário está logado
+      // ... sua lógica original de favoritos mantida ...
       const token = localStorage.getItem('token')
       if (!token) {
         console.log('Usuário não logado, abrindo modal de cadastro...')
@@ -567,7 +455,6 @@ export default {
           isFavorite.value = true
         }
       } catch (error) {
-        // Apenas loga o erro, a notificação será mostrada pelo composable
         console.error('Erro ao atualizar favorito:', error)
       }
     }
@@ -597,7 +484,7 @@ export default {
       formatPrice,
       decreaseQuantity,
       increaseQuantity,
-      addToCart,
+      handleAddToCart, // <-- CORREÇÃO: Exportando a função com o novo nome
       toggleFavorite,
       isAddingToCart,
       minPrice,

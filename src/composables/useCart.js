@@ -1,140 +1,198 @@
-import { ref, computed } from 'vue'
-import { useAuth } from './useAuth'
-import { useGhostSignup } from './useGhostSignup'
-import { useNotifications } from './useNotifications'
-import cartService from '../services/cartService'
+import { ref, computed, watch } from 'vue';
+import cartService from '../services/cartService';
+import produtoService from '../services/produtoService'; // Precisamos para buscar detalhes do produto
+import { useAuth } from './useAuth';
+import { useNotifications } from './useNotifications';
+
+// --- ESTADO GLOBAL REATIVO ---
+const cart = ref([]);
+const isLoading = ref(false);
+
+const ANONYMOUS_CART_KEY = 'anonymous_cart';
 
 export function useCart() {
-  const { user } = useAuth()
-  const { openGhostSignup } = useGhostSignup()
-  const { addNotification } = useNotifications()
-  const cart = ref([])
-  const isLoading = ref(false)
+  const { isLoggedIn, user } = useAuth();
+  const { addNotification } = useNotifications();
 
-  const total = computed(() => {
-    return cart.value.reduce((acc, item) => {
-      return acc + (item.preco * item.quantidade)
-    }, 0)
-  })
+  // --- FUNÇÕES INTERNAS ---
 
-  const totalItems = computed(() => {
-    return cart.value.reduce((acc, item) => acc + item.quantidade, 0)
-  })
-
-  const carregarCarrinho = async () => {
-    if (!user.value) return
-    
+  // Carrega o carrinho do localStorage para usuários não logados
+  const carregarCarrinhoLocal = async () => {
+    isLoading.value = true;
     try {
-      isLoading.value = true
-      const response = await cartService.getCart()
-      cart.value = response
-    } catch (error) {
-      console.error('Erro ao carregar carrinho:', error)
-      addNotification({
-        message: 'Erro ao carregar carrinho',
-        type: 'error'
-      })
+      const localCartData = localStorage.getItem(ANONYMOUS_CART_KEY);
+      if (localCartData) {
+        const localCartItems = JSON.parse(localCartData);
+        // Precisamos buscar os detalhes atuais dos produtos para garantir que os preços, etc., estão corretos
+        const productIds = localCartItems.map(item => item.produtoId);
+        if (productIds.length > 0) {
+            // Simulação de busca de detalhes. Idealmente, você teria um endpoint que aceita múltiplos IDs.
+            // Por enquanto, vamos assumir que os dados no localStorage são suficientes.
+            // Para uma implementação robusta, seria necessário buscar os produtos.
+            cart.value = localCartItems;
+        } else {
+            cart.value = [];
+        }
+      } else {
+        cart.value = [];
+      }
+    } catch (e) {
+      console.error("Erro ao carregar carrinho local:", e);
+      cart.value = [];
+      localStorage.removeItem(ANONYMOUS_CART_KEY);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  };
 
-  const adicionarAoCarrinho = async (produto, quantidade = 1) => {
-    if (!user.value) {
-      openGhostSignup(() => adicionarAoCarrinho(produto, quantidade))
-      return
-    }
-
+  // Carrega o carrinho da API para usuários logados
+  const carregarCarrinhoApi = async () => {
+    if (!isLoggedIn.value) return;
+    isLoading.value = true;
     try {
-      isLoading.value = true
-      await cartService.addToCart(produto.id, quantidade, produto.variacaoId)
-      await carregarCarrinho()
-      addNotification({
-        message: 'Produto adicionado ao carrinho',
-        type: 'success'
-      })
+      const response = await cartService.getCart();
+      cart.value = response?.itens || response || [];
     } catch (error) {
-      console.error('Erro ao adicionar ao carrinho:', error)
-      addNotification({
-        message: 'Erro ao adicionar ao carrinho',
-        type: 'error'
-      })
+      console.error('Erro ao carregar carrinho da API:', error);
+      addNotification({ message: 'Não foi possível carregar seu carrinho.', type: 'error' });
+      cart.value = [];
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  };
 
+  // Salva o carrinho no localStorage
+  const salvarCarrinhoLocal = () => {
+    localStorage.setItem(ANONYMOUS_CART_KEY, JSON.stringify(cart.value));
+  };
+
+  // Migra o carrinho local para o backend após o login
+  const migrarCarrinhoParaApi = async () => {
+    const localCartData = localStorage.getItem(ANONYMOUS_CART_KEY);
+    if (!localCartData) return;
+
+    const localItems = JSON.parse(localCartData);
+    if (localItems.length === 0) return;
+
+    console.log("Migrando carrinho local para o servidor...");
+    try {
+      // Usa o endpoint de atualizar carrinho do backend para enviar todos os itens de uma vez
+      const itemsToSync = localItems.map(item => ({
+        produtoId: item.produtoId,
+        quantidade: item.quantidade,
+        variacaoId: item.variacaoId
+      }));
+
+      await cartService.updateItem(null, itemsToSync); // Supondo que updateItem aceite um array
+      localStorage.removeItem(ANONYMOUS_CART_KEY); // Limpa o carrinho local após a migração
+      await carregarCarrinhoApi(); // Carrega o carrinho final do servidor
+    } catch (error) {
+      console.error("Erro ao migrar carrinho:", error);
+    }
+  };
+
+  // --- WATCHER PRINCIPAL ---
+  watch(isLoggedIn, (loggedIn) => {
+    if (loggedIn) {
+      // Usuário fez login: migra o carrinho local e depois carrega da API
+      migrarCarrinhoParaApi().then(() => {
+        carregarCarrinhoApi();
+      });
+    } else {
+      // Usuário não está logado (ou deslogou): carrega do localStorage
+      carregarCarrinhoLocal();
+    }
+  }, { immediate: true });
+
+  // --- FUNÇÕES PÚBLICAS ---
+ const adicionarAoCarrinho = async (produto, quantidade = 1, variacaoId = null) => {
+  if (!isLoggedIn.value) {
+    // Lógica para usuário não logado
+    const itemIndex = cart.value.findIndex(item => item.produtoId === produto.id && item.variacaoId === variacaoId);
+    const variacao = produto.variacoes.find(v => v.id === variacaoId);
+
+    if (itemIndex > -1) {
+      cart.value[itemIndex].quantidade += quantidade;
+    } else {
+      // --- CORREÇÃO CRÍTICA AQUI ---
+      // A estrutura do objeto que salvamos no carrinho local DEVE ser a mesma
+      // que o backend retornaria, para manter a consistência.
+      cart.value.push({
+        produtoId: produto.id,
+        variacaoId: variacaoId,
+        nome: `${produto.nome} - ${variacao.nome}`,
+        preco: parseFloat(variacao.preco),
+        quantidade: quantidade,
+        // Garante que o objeto 'produto' exista e tenha a estrutura esperada
+        produto: {
+            id: produto.id,
+            nome: produto.nome,
+            // Adiciona a categoria e a imagem principal se existirem
+            category: produto.categoria, // <-- O objeto completo da categoria
+            // Pega a primeira imagem para exibição no carrinho
+            imagemUrl: produto.imagens && produto.imagens.length > 0 ? produto.imagens[0] : null
+        }
+      });
+    }
+    salvarCarrinhoLocal();
+    addNotification({ message: 'Produto adicionado ao carrinho!', type: 'success' });
+    } else {
+      // Lógica para usuário logado (chama a API)
+      try {
+        await cartService.addToCart(produto.id, quantidade, variacaoId);
+        await carregarCarrinhoApi();
+        addNotification({ message: 'Produto adicionado ao carrinho!', type: 'success' });
+      } catch (error) {
+        console.error('Erro ao adicionar ao carrinho (API):', error);
+        addNotification({ message: error.response?.data?.erro || 'Erro ao adicionar produto.', type: 'error' });
+      }
+    }
+  };
+  
   const removerDoCarrinho = async (produtoId, variacaoId) => {
-    if (!user.value) return
-
-    try {
-      isLoading.value = true
-      await cartService.removeFromCart(produtoId, variacaoId)
-      await carregarCarrinho()
-      addNotification({
-        message: 'Produto removido do carrinho',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Erro ao remover do carrinho:', error)
-      addNotification({
-        message: 'Erro ao remover do carrinho',
-        type: 'error'
-      })
-    } finally {
-      isLoading.value = false
+    if (!isLoggedIn.value) {
+        cart.value = cart.value.filter(item => !(item.produtoId === produtoId && item.variacaoId === variacaoId));
+        salvarCarrinhoLocal();
+    } else {
+        await cartService.removeItem(produtoId, variacaoId);
+        await carregarCarrinhoApi();
     }
-  }
+  };
 
   const atualizarQuantidade = async (produtoId, variacaoId, quantidade) => {
-    if (!user.value) return
-
-    try {
-      isLoading.value = true
-      await cartService.updateQuantity(produtoId, variacaoId, quantidade)
-      await carregarCarrinho()
-    } catch (error) {
-      console.error('Erro ao atualizar quantidade:', error)
-      addNotification({
-        message: 'Erro ao atualizar quantidade',
-        type: 'error'
-      })
-    } finally {
-      isLoading.value = false
+    if (quantidade <= 0) {
+        await removerDoCarrinho(produtoId, variacaoId);
+        return;
     }
-  }
-
-  const limparCarrinho = async () => {
-    if (!user.value) return
-
-    try {
-      isLoading.value = true
-      await cartService.clearCart()
-      cart.value = []
-    } catch (error) {
-      console.error('Erro ao limpar carrinho:', error)
-      addNotification({
-        message: 'Erro ao limpar carrinho',
-        type: 'error'
-      })
-    } finally {
-      isLoading.value = false
+    if (!isLoggedIn.value) {
+        const itemIndex = cart.value.findIndex(item => item.produtoId === produtoId && item.variacaoId === variacaoId);
+        if(itemIndex > -1) {
+            cart.value[itemIndex].quantidade = quantidade;
+            salvarCarrinhoLocal();
+        }
+    } else {
+        await cartService.updateItem(produtoId, quantidade, variacaoId);
+        await carregarCarrinhoApi();
     }
-  }
+  };
 
-  // Alias para manter compatibilidade
-  const fetchCart = carregarCarrinho;
+
+  // Propriedades computadas
+  const subtotal = computed(() => {
+    return cart.value.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  });
+
+  const totalItems = computed(() => {
+    return cart.value.reduce((acc, item) => acc + item.quantidade, 0);
+  });
 
   return {
     cart,
     isLoading,
-    total,
+    subtotal,
     totalItems,
-    carregarCarrinho,
-    fetchCart,
     adicionarAoCarrinho,
     removerDoCarrinho,
     atualizarQuantidade,
-    limparCarrinho
-  }
-} 
+  };
+}

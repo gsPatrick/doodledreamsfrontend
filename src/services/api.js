@@ -5,7 +5,7 @@ import router from '@/router'
 
 // Configuração base do Axios
 const api = axios.create({
-  baseURL: 'https://n8n-doodledreambackend.r954jc.easypanel.host/',
+  baseURL: 'https://n8n-doodledreambackend.r954jc.easypanel.host',
   //baseURL: 'http://localhost:3045',
   timeout: 10000,
   headers: {

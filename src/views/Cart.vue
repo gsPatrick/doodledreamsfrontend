@@ -1,294 +1,157 @@
 <template>
   <div class="cart-page">
     <div class="container">
-    
+      <h1>Meu Carrinho</h1>
 
-      <h1 class="page-title">Meu Carrinho</h1>
-
-      <div v-if="loading" class="loading-cart">
-        <div class="loading-spinner">
-          <font-awesome-icon icon="spinner" spin />
-        </div>
+      <!-- Estado de Carregamento -->
+      <div v-if="isLoading" class="loading-cart">
+        <font-awesome-icon icon="spinner" spin size="2x" />
         <p>Carregando seu carrinho...</p>
       </div>
 
-      <div v-else-if="cartItems.length === 0" class="empty-cart">
-        <div class="empty-cart-icon">
-          <font-awesome-icon icon="shopping-cart" />
-        </div>
+      <!-- Carrinho Vazio -->
+      <div v-else-if="!cart || cart.length === 0" class="empty-cart">
         <h2>Seu carrinho está vazio</h2>
         <p>Adicione produtos ao seu carrinho para continuar.</p>
-        <router-link to="/catalogo" class="btn btn-primary">
-          Explorar Catálogo
-        </router-link>
+        <router-link to="/catalogo" class="btn btn-primary">Explorar Catálogo</router-link>
       </div>
 
+      <!-- Conteúdo do Carrinho -->
       <div v-else class="cart-content">
-        <div class="cart-items">
-          <div class="cart-header">
-            <div class="cart-header-product">Produto</div>
-            <div class="cart-header-price">Preço</div>
-            <div class="cart-header-quantity">Quantidade</div>
-            <div class="cart-header-total">Total</div>
-            <div class="cart-header-actions"></div>
-          </div>
-
-          <div v-for="item in cartItems" :key="item.id" class="cart-item">
-            <CartItem :item="item" @update-quantity="updateQuantity" @remove-item="removeItem" />
-          </div>
-        </div>
-
-        <div class="cart-sidebar">
-          <div class="cart-summary">
-            <h3 class="summary-title">Resumo do Pedido</h3>
-
-            <div class="summary-row">
-              <span>Subtotal</span>
-              <span>R$ {{ formatPrice(subtotal) }}</span>
-            </div>
-
-            <div class="summary-row" v-if="discount > 0">
-              <span>Desconto</span>
-              <span>- R$ {{ formatPrice(discount) }}</span>
-            </div>
-
-            <div class="summary-row shipping">
-              <span>Frete</span>
-              <span v-if="freeShipping">Grátis</span>
-              <span v-else>Calculado no checkout</span>
-            </div>
-
-            <div class="summary-row total">
-              <span>Total</span>
-              <span>R$ {{ formatPrice(total) }}</span>
-            </div>
-
-            <div class="summary-actions">
-              <router-link to="/checkout" class="btn btn-primary btn-block">
-                Finalizar Compra
-              </router-link>
-              <router-link to="/catalogo" class="btn btn-outline btn-block">
-                Continuar Comprando
-              </router-link>
-            </div>
-          </div>
-
-          <div class="coupon-form">
-            <h3 class="coupon-title">Cupom de Desconto</h3>
-            <form @submit.prevent="applyCoupon">
-              <div class="form-group">
-                <input type="text" v-model="couponCode" placeholder="Digite seu cupom" class="form-control">
+        <div class="row">
+          <!-- Lista de Itens -->
+          <div class="col-lg-8">
+            <div class="cart-items-list">
+              <div class="cart-header d-none d-md-flex">
+                <div class="col-md-6">Produto</div>
+                <div class="col-md-2 text-center">Preço</div>
+                <div class="col-md-2 text-center">Quantidade</div>
+                <div class="col-md-2 text-right">Total</div>
               </div>
-              <button type="submit" class="btn btn-secondary btn-block">
-                Aplicar Cupom
-              </button>
-            </form>
-            <div v-if="couponMessage" class="coupon-message" :class="{ error: couponError }">
-              {{ couponMessage }}
+              <!-- O componente CartItem agora recebe os dados e funções como props -->
+              <CartItem
+                v-for="item in cart"
+                :key="item.produto.id + '-' + item.variacaoId"
+                :item="item"
+                @remove="removerDoCarrinho(item.produtoId, item.variacaoId)"
+                @update-quantity="atualizarQuantidade(item.produtoId, item.variacaoId, $event)"
+              />
+            </div>
+          </div>
+
+          <!-- Resumo do Pedido -->
+          <div class="col-lg-4">
+            <div class="order-summary">
+              <h3>Resumo do Pedido</h3>
+              <div class="summary-line">
+                <span>Subtotal</span>
+                <span>R$ {{ formatPrice(subtotal) }}</span>
+              </div>
+              <div class="summary-line" v-if="discount > 0">
+                <span>Desconto</span>
+                <span class="text-success">- R$ {{ formatPrice(discount) }}</span>
+              </div>
+              <div class="summary-line">
+                <span>Frete</span>
+                <span>Calculado no checkout</span>
+              </div>
+              <hr />
+              <div class="summary-total">
+                <span>Total</span>
+                <span>R$ {{ formatPrice(total) }}</span>
+              </div>
+              <router-link to="/checkout" class="btn btn-primary btn-block mt-3">Finalizar Compra</router-link>
+              <router-link to="/catalogo" class="btn btn-outline-secondary btn-block mt-2">Continuar Comprando</router-link>
+            </div>
+            
+            <!-- Cupom de Desconto -->
+            <div class="coupon-section mt-4">
+              <h3>Cupom de Desconto</h3>
+              <div class="input-group">
+                <input type="text" v-model="couponCode" class="form-control" placeholder="Digite seu cupom">
+                <div class="input-group-append">
+                  <button @click="applyCoupon" class="btn btn-secondary">Aplicar</button>
+                </div>
+              </div>
+              <small v-if="couponMessage" class="coupon-message mt-2 d-block">{{ couponMessage }}</small>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Produtos Recomendados -->
-      <div v-if="cartItems.length > 0" class="cart-recommendations">
-        <ProductRecommendations title="Recomendados para você" subtitle="Baseado nos itens do seu carrinho"
-          :produtos="recommendedProducts" @add-to-cart="addToCart" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
-import debounce from 'lodash/debounce';
-import CartItem from '@/components/CartItem.vue';
-import ProductRecommendations from '@/components/ProductRecommendations.vue';
-import cartService from '@/services/cartService';
-import produtoService from '@/services/produtoService';
-import api from '@/services/api';
-import { useCart } from '@/composables/useCart';
+import { ref, computed } from 'vue'; // <-- ADICIONE 'ref' AQUI
+import { useCart } from '@/composables/useCart'; // Importa nosso hook centralizado
+import { useNotifications } from '@/composables/useNotifications';
+import CartItem from '@/components/CartItem.vue'; // Supondo que você tenha um componente para o item
 
 export default {
   name: 'Cart',
   components: {
     CartItem,
-    ProductRecommendations
   },
   setup() {
-    const loading = ref(true);
-    const cart = ref(null);
-    const cartItems = ref([]);
-    const recommendedProducts = ref([]);
+    // 1. Chamar o composable para obter o estado e as funções GLOBAIS
+    const { 
+      cart, 
+      isLoading, 
+      subtotal, 
+      removerDoCarrinho, 
+      atualizarQuantidade,
+      limparCarrinho 
+    } = useCart();
+
+    const { addNotification } = useNotifications();
+
+    // 2. Lógica de cupom (pode ser movida para um composable 'useCoupon' no futuro)
     const couponCode = ref('');
     const couponMessage = ref('');
-    const couponError = ref(false);
-    const appliedCoupon = ref(null);
-    const { fetchCart: refreshGlobalCart } = useCart();
+    const discount = ref(0); // Simulação de desconto
 
-    const formatPrice = (price) => {
-      if (typeof price !== 'number') return '0,00';
-      return price.toFixed(2).replace('.', ',');
-    };
-    
-    const mapCartData = (data) => {
-      if (!data || !Array.isArray(data.itens)) return [];
-      return data.itens.map(item => {
-        // Se o backend não devolve objeto produto completo, construir com dados mínimos
-        const product = item.produto || {
-          id: item.produtoId,
-          nome: item.nome,
-          preco: item.preco,
-          imagens: [],
-          categoria: null,
-        };
-
-        const imagens = Array.isArray(product.imagens) ? product.imagens : [];
-        return {
-          id: `${item.produtoId}-${item.variacaoId}`,
-          productId: item.produtoId,
-          variationId: item.variacaoId,
-          product: {
-            id: product.id,
-            title: product.nome,
-            price: parseFloat(product.preco),
-            image: imagens.length ? imagens[0] : 'https://via.placeholder.com/150',
-            category: product.categoria?.toString(),
-          },
-          quantity: item.quantidade || 1,
-          price: parseFloat(item.preco)
-        };
-      });
-    };
-
-    const fetchCart = async () => {
-      loading.value = true;
-      try {
-        const data = await cartService.getCart();
-        cart.value = data;
-        cartItems.value = mapCartData(data);
-        
-        if (cartItems.value.length > 0) {
-          fetchRecommendations(cartItems.value[0].product.category);
-        }
-
-        // Atualiza o estado global do carrinho também
-        refreshGlobalCart(true);
-
-      } catch (error) {
-        console.error("Erro ao buscar carrinho:", error);
-      } finally {
-        loading.value = false;
-      }
-    };
-    
-    const fetchRecommendations = async (categoryId) => {
-        if (!categoryId) return;
-        try {
-            const data = await produtoService.getProdutos({ categoria: categoryId, limit: 5 });
-            recommendedProducts.value = data.produtos.map(p => ({
-                id: p.id,
-                nome: p.nome,
-                title: p.nome,
-                preco: parseFloat(p.preco || 0),
-                price: parseFloat(p.preco || 0),
-                imagens: p.imagens || [],
-                variacoes: p.variacoes || [],
-                ArquivoProdutos: p.ArquivoProdutos || [],
-                category: p.categoria?.toString(),
-                categoria: p.categoria
-            }));
-        } catch (error) {
-            console.error("Erro ao buscar recomendações:", error);
-        }
-    };
-
-    const updateQuantity = debounce(async ({ productId, variationId, quantity }) => {
-      try {
-        await cartService.updateQuantity(productId, variationId, quantity);
-        fetchCart();
-        // Atualiza estado global
-        refreshGlobalCart(true);
-      } catch (error) {
-        console.error("Erro ao atualizar quantidade:", error);
-        alert('Não foi possível atualizar o item.');
-      }
-    }, 500);
-
-    const removeItem = async ({ productId, variationId }) => {
-      try {
-        await cartService.removeFromCart(productId, variationId);
-        fetchCart();
-        refreshGlobalCart(true);
-      } catch (error) {
-        console.error("Erro ao remover item:", error);
-        // Não exibir alerta aqui, pois já temos tratamento de erro no serviço
+    const applyCoupon = () => {
+      if (couponCode.value.toUpperCase() === 'DOODLE10') {
+        discount.value = subtotal.value * 0.10;
+        couponMessage.value = 'Cupom de 10% aplicado com sucesso!';
+        addNotification({ message: couponMessage.value, type: 'success' });
+      } else {
+        discount.value = 0;
+        couponMessage.value = 'Cupom inválido.';
+        addNotification({ message: couponMessage.value, type: 'error' });
       }
     };
 
-    const applyCoupon = async () => {
-      if (!couponCode.value) {
-        couponMessage.value = 'Por favor, digite um cupom.';
-        couponError.value = true;
-        return;
-      }
-
-      try {
-        const response = await api.post('/api/cupons/validar', { codigo: couponCode.value });
-        appliedCoupon.value = response.data;
-        couponMessage.value = 'Cupom aplicado com sucesso!';
-        couponError.value = false;
-        fetchCart();
-      } catch (error) {
-        appliedCoupon.value = null;
-        couponMessage.value = error.response?.data?.mensagem || 'Cupom inválido ou expirado.';
-        couponError.value = true;
-      }
-    };
-    
-    const subtotal = computed(() => {
-      if (cart.value && typeof cart.value.subtotal !== 'undefined') {
-        return parseFloat(cart.value.subtotal);
-      }
-      // Fallback: soma dos itens
-      return cartItems.value.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    });
-
-    const discount = computed(() => {
-      if (cart.value && typeof cart.value.desconto !== 'undefined') {
-        return parseFloat(cart.value.desconto);
-      }
-      return 0;
-    });
-
+    // 3. Total final calculado
     const total = computed(() => {
-      if (cart.value && typeof cart.value.total !== 'undefined') {
-        return parseFloat(cart.value.total);
-      }
       return subtotal.value - discount.value;
     });
 
-    const freeShipping = computed(() => subtotal.value >= 150);
+    // 4. Funções de formatação e navegação
+    const formatPrice = (value) => {
+      if (typeof value !== 'number') return '0,00';
+      return value.toFixed(2).replace('.', ',');
+    };
 
-    onMounted(fetchCart);
+    // Não precisamos mais de 'onMounted' para chamar 'fetchCart',
+    // pois o 'useCart' já lida com isso através de um 'watch'.
 
     return {
-      loading,
-      cartItems,
-      couponCode,
-      couponMessage,
-      couponError,
-      recommendedProducts,
+      cart,
+      isLoading,
       subtotal,
       discount,
       total,
-      freeShipping,
+      removerDoCarrinho,
+      atualizarQuantidade,
+      limparCarrinho,
       formatPrice,
-      updateQuantity,
-      removeItem,
+      couponCode,
+      couponMessage,
       applyCoupon,
     };
-  }
+  },
 };
 </script>
 

@@ -1,51 +1,50 @@
-import { ref } from 'vue'
+import { ref } from 'vue';
+import { useAuth } from './useAuth';
+import authService from '../services/authService';
+import { useNotifications } from './useNotifications';
 
-import { useAuth } from './useAuth'
-import authService from '../services/authService'
-import { useNotifications } from './useNotifications'
+// Estado global para o modal, para que apenas uma instância exista.
+const showModal = ref(false);
+const pendingAction = ref(null);
 
 export function useGhostSignup() {
-  const showModal = ref(false)
-
-  const { addNotification } = useNotifications()
-  const { checkAuthStatus } = useAuth()
-  const pendingAction = ref(null)
-
+  const { addNotification } = useNotifications();
+  const { checkAuthStatus } = useAuth(); // Usado para atualizar o estado de login
+  
   const openGhostSignup = (action) => {
-    console.log('openGhostSignup chamado, abrindo modal...')
-    pendingAction.value = action
-    showModal.value = true
-    console.log('Estado do showModal:', showModal.value)
-  }
+    console.log('Abrindo modal de Ghost Signup...');
+    pendingAction.value = action; // Armazena a ação (ex: adicionar ao carrinho)
+    showModal.value = true;
+  };
 
   const closeGhostSignup = () => {
-    console.log('closeGhostSignup chamado, fechando modal...')
-    showModal.value = false
-    pendingAction.value = null
-    console.log('Estado do showModal:', showModal.value)
-  }
+    showModal.value = false;
+    pendingAction.value = null;
+  };
 
-  const handleGhostSignupSuccess = async (resultado) => {
-    await checkAuthStatus()
+  // Esta função será chamada pelo componente do modal quando o usuário se cadastrar
+  const handleGhostSignupSuccess = async () => {
+    // Atualiza o estado de autenticação em toda a aplicação
+    await checkAuthStatus();
     
-    if (pendingAction.value) {
-      console.log('Executando ação pendente após cadastro...')
-      // Executa a ação que estava pendente
-      await pendingAction.value()
-      pendingAction.value = null
+    // Se havia uma ação pendente, execute-a agora que o usuário está "logado"
+    if (pendingAction.value && typeof pendingAction.value === 'function') {
+      console.log('Executando ação pendente após cadastro fantasma...');
+      await pendingAction.value();
     }
     
     addNotification({
-      message: 'Conta criada com sucesso! Enviamos um email para você definir sua senha.',
+      message: 'Conta criada! Enviamos um email para você definir sua senha.',
       type: 'success'
-    })
-    closeGhostSignup()
-  }
+    });
+    closeGhostSignup();
+  };
 
   return {
     showModal,
+    pendingAction,
     openGhostSignup,
     closeGhostSignup,
-    handleGhostSignupSuccess
-  }
-} 
+    handleGhostSignupSuccess,
+  };
+}

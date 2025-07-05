@@ -2,67 +2,98 @@ import { ref, computed } from 'vue';
 import api from '@/services/api';
 import authService from '@/services/authService';
 
-// Estado reativo GLOBAL, definido fora da função principal.
+// --- ESTADO GLOBAL REATIVO ---
+// Definido fora da função para ser um singleton, compartilhado por toda a app.
 const user = ref(null);
 const token = ref(localStorage.getItem('token'));
 const isLoggedIn = computed(() => !!user.value);
-let authInitialized = false; // Flag para garantir que a verificação seja feita apenas uma vez.
 
-// Função para verificar o status de autenticação (pode ser chamada de fora)
+// Flag para controlar se a verificação inicial de autenticação já foi concluída.
+const isAuthInitialized = ref(false);
+
+// --- FUNÇÃO DE VERIFICAÇÃO DE STATUS (CHAMADA UMA VEZ) ---
 const checkAuthStatus = async () => {
-    if (!token.value) {
-        user.value = null;
-        return;
-    }
+  // Previne múltiplas execuções
+  if (isAuthInitialized.value) return;
+
+  const localToken = localStorage.getItem('token');
+  console.log(`[Auth] Iniciando verificação. Token no localStorage: ${localToken ? 'Sim' : 'Não'}`);
+
+  if (localToken) {
+    token.value = localToken;
     try {
-        // Essa rota é protegida e retorna os dados do usuário se o token for válido
-        const response = await api.get('/api/usuarios/perfil');
-        user.value = response.data;
+      // Tenta buscar o perfil do usuário para validar o token existente.
+      const response = await api.get('/api/usuarios/perfil');
+      user.value = response.data;
+      console.log("[Auth] Token validado com sucesso. Usuário definido:", user.value.nome);
     } catch (error) {
-        // O interceptor de API já vai lidar com o erro 401, redirecionando para o login.
-        // Aqui limpamos o estado local para garantir consistência.
-        console.error("Falha ao verificar status de autenticação:", error);
-        user.value = null;
-        token.value = null; // Garante que a variável reativa local seja limpa
-        localStorage.removeItem('token');
+      console.error("[Auth] Falha na validação do token. Limpando token inválido.", error);
+      localStorage.removeItem('token');
+      user.value = null;
+      token.value = null;
     }
+  }
+  
+  // Marca a inicialização como concluída, independentemente do resultado.
+  isAuthInitialized.value = true;
+  console.log(`[Auth] Verificação de autenticação concluída. Usuário logado: ${isLoggedIn.value}`);
 };
 
-// O hook principal
+// --- HOOK PRINCIPAL ---
 export function useAuth() {
-    // Garante que a verificação inicial seja feita apenas uma vez na vida útil da aplicação
-    if (!authInitialized) {
-        checkAuthStatus();
-        authInitialized = true;
-    }
 
-    const login = async (credentials) => {
-        // A função de login no authService já retorna o usuário e o token
-        const { token: newToken, usuario } = await authService.login(credentials.email, credentials.senha);
+  // Função para realizar o login do usuário
+  const login = async (credentials) => {
+    try {
+      console.log("[Auth] Tentando fazer login para:", credentials.email);
+      const response = await authService.login(credentials.email, credentials.senha);
+      
+      if (response && response.token && response.usuario) {
+        const { token: newToken, usuario } = response;
         
+        // Ponto crítico: Salva o token no localStorage
         localStorage.setItem('token', newToken);
+        
+        // Atualiza o estado reativo global
         token.value = newToken;
         user.value = usuario;
-    };
+        
+        // Define o cabeçalho padrão do Axios para garantir que futuras requisições o incluam
+        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        
+        console.log(`[Auth] Login bem-sucedido para ${usuario.nome}. Token salvo no localStorage.`);
+      } else {
+        throw new Error("Resposta de login inválida recebida da API.");
+      }
+    } catch (error) {
+      console.error("[Auth] Erro no fluxo de login:", error.response?.data?.erro || error.message);
+      // Garante que tudo seja limpo em caso de falha no login
+      localStorage.removeItem('token');
+      token.value = null;
+      user.value = null;
+      delete api.defaults.headers.common['Authorization'];
+      throw error; // Re-lança o erro para o componente de UI tratar (ex: mostrar mensagem)
+    }
+  };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        token.value = null;
-        user.value = null;
-        window.location.href = '/login'; // Força o redirecionamento e limpeza de estado
-    };
-    
-    // Método para definir o usuário no estado após criar a conta ghost
-    const setUser = (userData) => {
-        user.value = userData;
-    };
-
-    return {
-        user,
-        isLoggedIn,
-        login,
-        logout,
-        checkAuthStatus,
-        setUser
-    };
-} 
+  // Função para realizar o logout do usuário
+  const logout = () => {
+    console.log("[Auth] Realizando logout.");
+    authService.logout(); // O serviço já limpa o localStorage e o header da api
+    user.value = null;
+    token.value = null;
+    // Redirecionamento forçado para garantir que todos os estados sejam resetados.
+    window.location.href = '/login';
+  };
+  
+  // Retorna as propriedades e métodos que os componentes podem usar
+  return {
+    user,
+    token,
+    isLoggedIn,
+    isAuthInitialized,
+    login,
+    logout,
+    checkAuthStatus,
+  };
+}
