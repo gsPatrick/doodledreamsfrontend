@@ -4,7 +4,8 @@ import { useAuth } from './useAuth';
 import { useNotifications } from './useNotifications';
 
 // --- ESTADO GLOBAL REATIVO ---
-const cart = ref({ itens: [], total: 0 }); // Estrutura padronizada
+// Inicia com uma estrutura válida para evitar erros de 'null'
+const cart = ref({ itens: [], total: 0 });
 const isLoading = ref(false);
 
 export function useCart() {
@@ -13,14 +14,20 @@ export function useCart() {
 
   // Carrega o carrinho da API (funciona para logados e convidados)
   const fetchCart = async () => {
-    if (!isAuthInitialized.value) return; // Espera a autenticação inicial terminar
+    // Só executa se a verificação de autenticação inicial já terminou.
+    if (!isAuthInitialized.value) return; 
+    
     isLoading.value = true;
     try {
       const response = await cartService.getCart();
-      cart.value = response.data || { itens: [], total: 0 };
+      // Garante que 'cart.value' sempre seja um objeto válido, mesmo se a API retornar algo inesperado
+      cart.value = response.data && Array.isArray(response.data.itens) 
+                   ? response.data 
+                   : { itens: [], total: 0 };
     } catch (error) {
       console.error('Erro ao carregar carrinho da API:', error);
       addNotification({ message: 'Não foi possível carregar seu carrinho.', type: 'error' });
+      // Reseta para um estado seguro em caso de erro
       cart.value = { itens: [], total: 0 };
     } finally {
       isLoading.value = false;
@@ -36,6 +43,11 @@ export function useCart() {
   
   // Observa o estado de login para acionar a migração.
   watch(isLoggedIn, async (loggedIn, wasLoggedIn) => {
+    // wasLoggedIn é undefined na primeira execução, precisamos tratar isso.
+    if (wasLoggedIn === undefined) {
+      return; // Não faz nada na carga inicial, a lógica acima já cuida disso.
+    }
+    
     // Ação ocorre apenas quando o usuário FAZ LOGIN (de deslogado para logado)
     if (loggedIn && wasLoggedIn === false) {
       console.log("Usuário fez login. Tentando migrar carrinho de convidado...");
@@ -50,16 +62,20 @@ export function useCart() {
       } finally {
         isLoading.value = false;
       }
-    } else if (!loggedIn) {
+    } else if (!loggedIn && wasLoggedIn === true) {
         // Se o usuário deslogou, recarrega o carrinho (que agora será de um novo convidado)
         fetchCart();
     }
   });
 
   const adicionarAoCarrinho = async (produto, quantidade = 1, variacaoId = null) => {
+    if (!produto || !produto.id) {
+        console.error("Tentativa de adicionar um produto inválido ao carrinho.");
+        return;
+    }
+
     isLoading.value = true;
     try {
-      // A chamada é a mesma para logado ou convidado, o backend resolve
       const response = await cartService.addToCart(produto.id, quantidade, variacaoId);
       cart.value = response.data;
       addNotification({ message: 'Produto adicionado ao carrinho!', type: 'success' });
@@ -103,15 +119,19 @@ export function useCart() {
     return cart.value?.itens?.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) || 0;
   });
 
-  const totalItems = computed(() => {
+  // --- MUDANÇA CRÍTICA AQUI ---
+  // A propriedade computada agora se chama 'itemCount' para corresponder ao seu template Header.vue
+  const itemCount = computed(() => {
     return cart.value?.itens?.reduce((acc, item) => acc + item.quantidade, 0) || 0;
   });
 
+  // --- MUDANÇA CRÍTICA AQUI ---
+  // O bloco de retorno agora exporta 'itemCount' em vez de 'totalItems'.
   return {
-    cart: computed(() => cart.value.itens), // Expõe apenas o array de itens para os componentes
+    cart: computed(() => cart.value?.itens || []), 
     isLoading,
     subtotal,
-    totalItems,
+    itemCount, // <-- Corrigido para corresponder ao seu Header.vue
     adicionarAoCarrinho,
     removerDoCarrinho,
     atualizarQuantidade,
