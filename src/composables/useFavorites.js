@@ -5,90 +5,94 @@ import { useGhostSignup } from './useGhostSignup';
 import { useNotifications } from './useNotifications';
 
 // --- Estado Global ---
-const totalFavoritos = ref(0);
+// O estado global deve ser seguro. O total de favoritos é apenas um número.
+const totalFavoritos = ref(0); 
 
-// --- Lógica Reativa ---
-// Obtém o estado de login reativo do useAuth
-const { isLoggedIn, user } = useAuth();
-const { openGhostSignup } = useGhostSignup();
-const { addNotification } = useNotifications();
-
-// Função para buscar os favoritos
-const fetchTotalFavoritos = async () => {
-  // Apenas busca se o usuário estiver logado
-  if (isLoggedIn.value) {
-    try {
-      const response = await favoritoService.contarFavoritos();
-      totalFavoritos.value = response.data.total || 0;
-    } catch (error) {
-      console.error('Erro ao buscar total de favoritos:', error);
-      totalFavoritos.value = 0;
-    }
-  } else {
-    // Se não estiver logado, zera a contagem
-    totalFavoritos.value = 0;
-  }
-};
-
-// Observa o estado de login. Se mudar (login/logout), a contagem é atualizada.
-// immediate: true -> executa a primeira vez que é definido.
-watch(isLoggedIn, fetchTotalFavoritos, { immediate: true });
-
-// --- Hook Principal ---
 export function useFavorites() {
+  // Obtém o estado de login reativo do useAuth
+  const { isLoggedIn, user, isAuthInitialized } = useAuth();
+  const { openGhostSignup } = useGhostSignup();
+  const { addNotification } = useNotifications();
+  
   const favoritos = ref([]);
   const isLoading = ref(false);
 
-  const carregarFavoritos = async () => {
-    if (!user.value) return;
-    
-    try {
-      isLoading.value = true;
-      const response = await favoritoService.getFavoritos();
-      favoritos.value = response.data;
-    } catch (error) {
-      console.error('Erro ao carregar favoritos:', error);
-      addNotification({
-        message: 'Erro ao carregar favoritos',
-        type: 'error'
-      });
-    } finally {
-      isLoading.value = false;
+  // Função para buscar os favoritos e a contagem
+  const fetchFavoritesData = async () => {
+    // Apenas busca se o usuário estiver logado e a autenticação já tiver sido inicializada
+    if (isLoggedIn.value && isAuthInitialized.value) {
+      try {
+        // Busca a lista completa de favoritos
+        const responseList = await favoritoService.getFavoritos();
+        favoritos.value = responseList.data || [];
+        
+        // Atualiza a contagem total baseada no comprimento da lista recebida
+        totalFavoritos.value = favoritos.value.length;
+
+      } catch (error) {
+        console.error('Erro ao buscar dados dos favoritos:', error);
+        favoritos.value = [];
+        totalFavoritos.value = 0;
+      }
+    } else {
+      // Se não estiver logado, zera tudo para garantir um estado limpo
+      favoritos.value = [];
+      totalFavoritos.value = 0;
     }
   };
 
+  // Observa o estado de login e a inicialização. Se mudar, os dados são atualizados.
+  // Usar watch em um array de fontes é mais robusto.
+  watch([isLoggedIn, isAuthInitialized], ([loggedIn, authInitialized]) => {
+    if (authInitialized) {
+        fetchFavoritesData();
+    }
+  }, { immediate: true });
+
+  const carregarFavoritos = async () => {
+    isLoading.value = true;
+    await fetchFavoritesData();
+    isLoading.value = false;
+  };
+
   const adicionarFavorito = async (produto) => {
-    if (!user.value) {
+    // Checagem de segurança para o objeto do produto
+    if (!produto || !produto.id) {
+        console.error("Tentativa de adicionar um produto inválido aos favoritos.");
+        return;
+    }
+
+    // Se não estiver logado, abre o modal de cadastro rápido
+    if (!isLoggedIn.value) {
       openGhostSignup(() => adicionarFavorito(produto));
       return;
     }
 
     try {
-      isLoading.value = true;
       await favoritoService.addFavorito({ produtoId: produto.id });
-      await carregarFavoritos();
+      // Após adicionar, busca novamente todos os dados para manter a consistência
+      await fetchFavoritesData(); 
       addNotification({
-        message: 'Produto adicionado aos favoritos',
+        message: 'Produto adicionado aos favoritos!',
         type: 'success'
       });
     } catch (error) {
       console.error('Erro ao adicionar aos favoritos:', error);
       addNotification({
-        message: 'Erro ao adicionar aos favoritos',
+        message: error.response?.data?.erro || 'Erro ao adicionar aos favoritos',
         type: 'error'
       });
-    } finally {
-      isLoading.value = false;
     }
   };
 
   const removerFavorito = async (produtoId) => {
-    if (!user.value) return;
+    // Checagem de segurança
+    if (!isLoggedIn.value) return;
 
     try {
-      isLoading.value = true;
       await favoritoService.removeFavorito(produtoId);
-      await carregarFavoritos();
+      // Após remover, busca novamente todos os dados
+      await fetchFavoritesData(); 
       addNotification({
         message: 'Produto removido dos favoritos',
         type: 'success'
@@ -96,24 +100,25 @@ export function useFavorites() {
     } catch (error) {
       console.error('Erro ao remover dos favoritos:', error);
       addNotification({
-        message: 'Erro ao remover dos favoritos',
+        message: error.response?.data?.erro || 'Erro ao remover dos favoritos',
         type: 'error'
       });
-    } finally {
-      isLoading.value = false;
     }
   };
 
   const isFavorito = (produtoId) => {
-    return favoritos.value.some(f => f.produto_id === produtoId);
+    // Checagem segura
+    return favoritos.value.some(f => f && f.produtoId === produtoId);
   };
 
+  // O retorno do hook para os componentes usarem
   return {
     favoritos,
+    totalFavoritos, // Exporta a contagem global
     isLoading,
     carregarFavoritos,
     adicionarFavorito,
     removerFavorito,
     isFavorito
   };
-} 
+}
